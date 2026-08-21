@@ -455,14 +455,6 @@ function renderMainGameUI() {
   `;
 
   main.innerHTML = `
-    <!-- Top-Left Kiosk Close Button -->
-    <button id="kiosk-back-btn" class="kiosk-back-btn" aria-label="닫기">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
-    </button>
-
     <!-- Title Banner Area -->
     <div class="title-banner-wrapper">
       <div class="title-center-block">
@@ -536,17 +528,69 @@ function handleAnswerSelection(choice) {
   renderMainGameUI();
 }
 
+const HOME_URL = 'https://claix-quiz-list6-bp67.vercel.app/';
+
+let isNavigating = false;
+function navigateToHome() {
+  if (isNavigating) return;
+  isNavigating = true;
+
+  try {
+    sfx.playClick();
+  } catch (e) {}
+
+  // 1. Post messages for parent/host kiosk containers if listening
+  try {
+    const msg = { type: 'GO_HOME', action: 'close', source: 'claix-quiz' };
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(msg, '*');
+      window.parent.postMessage('goBack', '*');
+      window.parent.postMessage('close', '*');
+    }
+    if (window.top && window.top !== window) {
+      window.top.postMessage(msg, '*');
+    }
+  } catch (e) {}
+
+  // 2. Try top-level navigation first (for iframe/webview wrappers)
+  try {
+    if (window.top && window.top.location) {
+      window.top.location.href = HOME_URL;
+      return;
+    }
+  } catch (e) {
+    // Cross-origin restriction on window.top.location access
+  }
+
+  // 3. Try parent-level navigation
+  try {
+    if (window.parent && window.parent.location) {
+      window.parent.location.href = HOME_URL;
+      return;
+    }
+  } catch (e) {}
+
+  // 4. Fallback to standard window navigation with replace to avoid history loops
+  try {
+    window.location.replace(HOME_URL);
+  } catch (e) {
+    window.location.href = HOME_URL;
+  }
+}
+
+// Global capture-phase listener for click and touch interactions
+['click', 'touchend'].forEach((eventType) => {
+  document.addEventListener(eventType, (e) => {
+    const target = e.target;
+    if (target && target.closest('#kiosk-back-btn, .kiosk-back-btn, #btn-back, #btn-close')) {
+      // Allow native browser top navigation if supported, while also triggering fallback
+      navigateToHome();
+    }
+  }, { capture: true, passive: true });
+});
+
 function attachEventHandlers() {
   const totalQ = state.questions.length;
-
-  // Top-Left Kiosk Close Button
-  const btnKioskBack = document.getElementById('kiosk-back-btn');
-  if (btnKioskBack) {
-    btnKioskBack.addEventListener('click', () => {
-      sfx.playClick();
-      window.location.href = 'https://claix-quiz-list6-bp67.vercel.app/';
-    });
-  }
 
   // O Button Click
   const btnO = document.getElementById('btn-choice-o');
@@ -702,18 +746,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // Header Back Button
   const btnBack = document.getElementById('btn-back');
   if (btnBack) {
-    btnBack.addEventListener('click', () => {
-      sfx.playClick();
-      initGameSession();
+    btnBack.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToHome();
     });
   }
 
   // Header Home / Close Button
   const btnClose = document.getElementById('btn-close');
   if (btnClose) {
-    btnClose.addEventListener('click', () => {
-      sfx.playClick();
-      initGameSession();
+    btnClose.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateToHome();
     });
   }
 

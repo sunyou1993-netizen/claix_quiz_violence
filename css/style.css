@@ -73,6 +73,9 @@ html, body {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   padding: 0;
+  text-decoration: none;
+  box-sizing: border-box;
+  color: #334155;
 }
 
 .kiosk-back-btn:active {
